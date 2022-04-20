@@ -1,0 +1,38 @@
+version: "3"
+
+services:  
+  vpn:
+    image: ekristen/openvpn-client
+    container_name: p592-openvpn
+    stdin_open: true
+    tty: true
+    command: --config /p592/server/config.ovpn --auth-nocache
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - /home/vm-admin/server/p592:/p592/server
+    working_dir: /p592
+
+  python:
+    image: p592-python
+    container_name: p592-python
+    depends_on:
+      - vpn
+    network_mode: "service:vpn"
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    volumes:
+      - /home/vm-admin/p592/server:/p592/server
+    build:
+      context: .
+      dockerfile: python.Dockerfile
+    working_dir: /p592/server
+    command: python control_server.py
+
+
