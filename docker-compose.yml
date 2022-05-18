@@ -6,7 +6,7 @@ services:
     container_name: p592-openvpn
     stdin_open: true
     tty: true
-    command: --config /p592/server/config.ovpn --auth-nocache
+    command: --config /trackerapi/config.ovpn --auth-nocache
     cap_add:
       - NET_ADMIN
     devices:
@@ -15,8 +15,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - /home/vm-admin/server/p592:/p592/server
-    working_dir: /p592
+      - /home/ivan/projects/trackerapi:/trackerapi
 
   python:
     image: p592-python
@@ -28,11 +27,11 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - /home/vm-admin/p592/server:/p592/server
+      - /home/ivan/Documents/projects/trackerapi:/Documents/projects/trackerapi
     build:
       context: .
       dockerfile: python.Dockerfile
-    working_dir: /p592/server
+    working_dir: /Documents/projects/trackerapi
     command: python control_server.py
 
 
