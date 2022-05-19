@@ -10,4 +10,4 @@ RUN apt-get update -y \
 RUN pip install -U pip 
 
 # Устанавливаем библиотеки
-RUN pip3 install flask jsonify requests
+RUN pip3 install flask jsonify requests flask_sqlalchemy pymysql

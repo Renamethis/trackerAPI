@@ -1,14 +1,11 @@
-from flask import Flask, request
+from flask import request
 from flask.views import View
 from json import dumps
-from requests import post, get, patch
+from requests import post, get
 from requests.exceptions import ConnectionError
 from json.decoder import JSONDecodeError
 from enum import Enum, auto
-from threading import Thread
-from datetime import datetime, date
-from time import sleep
-
+from ..database.models import Tracker
 class ServerError(Enum):
     InvalidCommand = auto()
     NoCommandProvided = auto()
@@ -16,7 +13,6 @@ class ServerError(Enum):
     TrackerError = auto()
 
 class Server(View):
-    methods = ['GET', 'POST']
     COMMANDS = ['start', 'autoset', 'assistant', 
                 'stop', 'set', 'get', 'status', 'track']
     api_key = 'c745cc1883a84f9bbe3252d865009a52'
@@ -32,20 +28,18 @@ class Server(View):
             try:
                 if(data['command'] in self.COMMANDS):
                     try:
-                        # Запрос к базе данных erudite
-                        device = get(self.erudite_url + 'equipment?room_name='
-                                    + data['room_name'] + '&type=Tracker',
-                                    headers=self.erudite_headers).json()
-                        if(type(device) is dict):
+                        # Запрос к базе данных
+                        device = Tracker.query.get(data['room'])
+                        if(device is None):
                             return self.error('The tracker is not set on provided room',
                                         ServerError.DeviceNotFound)
-                        device = device[0]
+                        device = device.to_json()
                         device_ip = device['ip']
                         device_port = device['port']
                         # Передаем все параметры для команды set(если они есть)
                         body = {}
                         for key in data.keys():
-                            if(key != 'room_name'):
+                            if(key != 'room'):
                                 body[key] = data[key]
                         # Отправляем запрос на необходимое устройство
                         response = post('http://' + device_ip + ':' +
@@ -66,6 +60,7 @@ class Server(View):
             except KeyError:
                 return self.error('Data format is incorrect',
                             ServerError.NoCommandProvided)
+        return self.error('Unknown Error', ServerError.TrackerError)
     # Функция для возврата ошибки
     def error(self, desc, code):
         return dumps({

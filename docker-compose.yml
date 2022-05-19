@@ -1,37 +1,70 @@
-version: "3"
+version: "3.6"
 
 services:  
   vpn:
-    image: ekristen/openvpn-client
+    image: dperson/openvpn-client
     container_name: p592-openvpn
     stdin_open: true
     tty: true
-    command: --config /trackerapi/config.ovpn --auth-nocache
+
+    # cap_add, security_opt, and volume required for the image to function
     cap_add:
-      - NET_ADMIN
+      - net_admin
+    networks:
+      default:
+    ports:
+      - 5000:5000
+      - 3306:3306
+    # if using '-d' or 'DNS' you can't enable the `read_only: true` option
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    restart: unless-stopped
+    security_opt:
+      - label:disable
+    stdin_open: true
+    tty: true
     devices:
       - "/dev/net/tun:/dev/net/tun"
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
     volumes:
-      - /home/ivan/projects/trackerapi:/trackerapi
-
+      - /dev/net:/dev/net:z
+    volumes:
+      - ./vpn:/vpn
   python:
     image: p592-python
     container_name: p592-python
     depends_on:
       - vpn
-    network_mode: "service:vpn"
+    network_mode: "service:db"
     restart: unless-stopped
     stdin_open: true
     tty: true
     volumes:
-      - /home/ivan/Documents/projects/trackerapi:/Documents/projects/trackerapi
+      - ../trackerapi:/app:z
     build:
       context: .
       dockerfile: python.Dockerfile
-    working_dir: /Documents/projects/trackerapi
-    command: python control_server.py
-
-
+    working_dir: /app
+    command: flask run --host=0.0.0.0
+    environment:
+      - FLASK_APP=server.py
+      - DEV_DATABASE_URL=mysql+pymysql://user:secret@localhost:3306/trackers
+  db:
+    image: mysql:5.7
+    restart: unless-stopped
+    depends_on:
+      - vpn
+    command: --init-file /app/database/init.sql
+    network_mode: "service:vpn"
+    environment:
+        MYSQL_ROOT_USER: root
+        MYSQL_ROOT_PASSWORD: secret
+        MYSQL_DATABASE: trackers
+        MYSQL_USER: user
+        MYSQL_PASSWORD: secret
+    volumes:
+      - ./app/database/init.sql:/app/database/init.sql
+      - my-db:/var/lib/mysql:rw
+volumes:
+  my-db: {}
